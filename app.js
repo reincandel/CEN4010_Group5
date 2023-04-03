@@ -1,5 +1,69 @@
 
+const express = require('express');
+const mysql = require('mysql');
+const bodyParser = require('body-parser');
 
+const app = express();
+const port = 3000;
+
+app.use(express.json());
+
+// MySQL Connection
+const connection = mysql.createConnection({
+  host: 'localhost',
+  user: 'root',
+  password: '',
+  database: ''
+});
+
+connection.connect((err) => {
+  if (err) throw err;
+
+  console.log('Connected to MySQL database');
+});
+
+// Body Parser Middleware
+app.use(bodyParser.json());
+
+// Routes
+app.get('/books', (req, res) => {
+  const query = 'SELECT * FROM books';
+  connection.query(query, (err, results) => {
+    if (err) throw err;
+    res.send(results);
+  });
+});
+
+app.get('/user', (req, res) => {
+  const userId = req.query.id;
+  const query = 'SELECT name, email, address FROM user WHERE user_id = ?';
+  const values = [userId];
+
+  // Execute SQL query to retrieve user's information
+  connection.query(query, values, (error, results) => {
+    if (error)  {
+      console.error(error);
+    res.send('Error retrieving user information');
+      return;
+    }
+    
+    // Check if user was found
+    if (results.length === 0) {
+      res.send('User not found');
+      return;
+    }
+
+    // Construct user object with retrieved information
+    const user = {
+      "user_id": userId,
+      "name": results[0].name,
+      "email": results[0].email,
+      "address": results[0].address
+    };
+
+    res.json(user);
+  });
+});
 
 
 // Wishlist Feature

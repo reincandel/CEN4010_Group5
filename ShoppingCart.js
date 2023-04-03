@@ -10,7 +10,7 @@ const connection = mysql.createConnection({
   host: 'localhost',
   user: 'root',
   password: '',
-  database: 'books'
+  database: ''
 });
 
 connection.connect((err) => {
@@ -23,7 +23,7 @@ app.use(bodyParser.json());
 
 // Routes
 app.get('/books', (req, res) => {
-  const query = 'SELECT * FROM books.shopping_cart';
+  const query = 'SELECT * FROM book';
   connection.query(query, (err, results) => {
     if (err) throw err;
     res.send(results);

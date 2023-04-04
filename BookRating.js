@@ -10,7 +10,7 @@ const connection = mysql.createConnection({
   host: 'localhost',
   user: 'root',
   password: '',
-  database: 'book_library'
+  database: ''
 });
 
 connection.connect((err) => {

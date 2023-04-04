@@ -7,12 +7,6 @@ const port = 3000;
 
 app.use(express.json());
 
-//Myla 
-import { signup, login, getUserDetails, updateUserDetails } from './database.js';
-app.post("/signup", signup)
-app.get("/users/:username", getUserDetails )
-app.put("/update/:username", updateUserDetails)
-app.post("/login", login)
 
 // MySQL Connection
 const connection = mysql.createConnection({

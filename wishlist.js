@@ -67,7 +67,7 @@ app.get('/user', (req, res) => {
 
 
 
-/* TEST TO GET USER WISHLIST NAME AND ID
+// TEST TO GET USER WISHLIST NAME AND ID
 
 app.get('/wishlist/users', (req, res) => {
   const userId = req.body.user_id;
@@ -104,14 +104,14 @@ app.get('/wishlist/users', (req, res) => {
 
       const wishlist = wishlistResults.map(result => {
         return {
-          "wishlist_id": result.wishlist_id,
-          "wishlist_name": result.wishlist_name
+          "Wishlist ID": result.wishlist_id,
+          "Wishlist Name": result.wishlist_name
         };
       });
 
       const response = {
-        "user": user,
-        "wishlist": wishlist
+        "User ID": user,
+        "Wishlist": wishlist
       };
 
       res.json(response);
@@ -119,7 +119,7 @@ app.get('/wishlist/users', (req, res) => {
   });
 });
 
-*/
+
 
 // CREATE WISHLIST
 
@@ -241,26 +241,74 @@ app.post('/wishlist/add-book', (req, res) => {
 // DELETE BOOK FROM WISHLIST AND ADD TO CART
 
 app.delete('/wishlist/remove-book/', (req, res) => {
-  //const userId = req.body.user_id;
   const wishlistId = req.body.wishlist_id;
   const bookId = req.body.book_id;
 
-  const deleteQuery = 'DELETE FROM wishlistBooks WHERE wishlist_id = ? AND book_id = ?';
-  const deleteValues = [wishlistId, bookId];
+  const selectQuery = `
+    SELECT * FROM wishlistBooks WHERE wishlist_id = ? AND book_id = ?
+  `;
+  const selectValues = [wishlistId, bookId];
 
-  connection.query(deleteQuery, deleteValues, (err, results) => {
+  connection.query(selectQuery, selectValues, (err, results) => {
     if (err) {
       console.error(err);
-      res.send('Error removing book from wishlist');
+      res.send('Error checking if book is in wishlist');
       return;
     }
 
-    res.send
-    /* TEST TO SEE IF BOOK WAS REMOVED AND ADDED TO SHOPPING CART
-    ('Book removed from wishlist and added to shopping cart'); 
-    */
+    if (results.length === 0) {
+      res.send('Book is not in wishlist');
+      return;
+    }
+
+    const deleteQuery = 'DELETE FROM wishlistBooks WHERE wishlist_id = ? AND book_id = ?';
+    const deleteValues = [wishlistId, bookId];
+
+    connection.query(deleteQuery, deleteValues, (err, results) => {
+      if (err) {
+        console.error(err);
+        res.send('Error removing book from wishlist');
+        return;
+      }
+
+      const getUserQuery = 'SELECT user_id FROM wishlist WHERE wishlist_id = ?';
+      const getUserValues = [wishlistId];
+
+      connection.query(getUserQuery, getUserValues, (err, getUserResults) => {
+        if (err) {
+          console.error(err);
+          res.send('Error retrieving user ID from wishlist');
+          return;
+        }
+
+        const userId = getUserResults[0].user_id;
+
+        const insertQuery = `
+          INSERT INTO ShoppingCart (user_id, book_id, book_name, book_price)
+          SELECT ?, ?, title, price
+          FROM Books
+          WHERE book_id = ?
+        `;
+        const insertValues = [userId, bookId, bookId];
+
+        connection.query(insertQuery, insertValues, (err, results) => {
+          if (err) {
+            console.error(err);
+            res.send('Error adding book to shopping cart');
+            return;
+          }
+
+          res.send(
+            /* TEST IF BOOK WAS REMOVED AND ADDED TO SHOPPING CART
+            'Book removed from wishlist and added to shopping cart'
+            */
+            );
+        });
+      });
+    });
   });
 });
+
 
 
 // GET LIST OF BOOKS IN WISHLIST BY WISHLIST ID
@@ -287,19 +335,57 @@ app.get('/wishlist/books', (req, res) => {
 
     const bookArray = results.map(book => {
       return {
-        "book_id": book.book_id,
-        "title": book.title,
-        "author": book.author,
-        "genre": book.genre,
+        "Book ID": book.book_id,
+        "Title": book.title,
+        "Author": book.author,
+        "Genre": book.genre,
         "ISBN": book.ISBN,
-        "publisher": book.publisher,
-        "price": book.price
+        "Publisher": book.publisher,
+        "Price": book.price
       };
     });
   
     res.json({
-      "wishlist_id": wishlistId,
-      "books": bookArray
+      "Wishlist ID": wishlistId,
+      "Books": bookArray
+    });
+  });
+});
+
+// TEST SHOPPING CART ADDED BOOK BY USER
+app.get('/wishlist/ShoppingCart', (req, res) => {
+  const userId = req.body.user_id;
+  const query = 'SELECT cart_id, user_id, book_id, book_name, book_price FROM ShoppingCart WHERE user_id = ?';
+  const values = [userId];
+
+  // Execute SQL query to retrieve user's information
+  connection.query(query, values, (error, results) => {
+    if (error)  {
+      console.error(error);
+    res.send('Error retrieving user information');
+      return;
+    }
+    
+    // Check if user was found
+    if (results.length === 0) {
+      res.send('User not found');
+      return;
+    }
+
+    const cartArray = [];
+
+      results.forEach((result) => {
+        const book = {
+        "Book ID": result.book_id,
+        "Book": result.book_name,
+        "Price": result.book_price
+        };
+      cartArray.push(book);
+      });
+
+    res.json({
+      "User": userId,
+      "Books": cartArray
     });
   });
 });

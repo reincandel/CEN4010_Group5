@@ -9,8 +9,8 @@ const port = 3000;
 const connection = mysql.createConnection({
   host: 'localhost',
   user: 'root',
-  password: '',
-  database: ''
+  password: 'Golondrinas_1',
+  database: 'books'
 });
 
 connection.connect((err) => {
@@ -18,127 +18,87 @@ connection.connect((err) => {
   console.log('Connected to MySQL database');
 });
 
-// Body Parser Middleware
-app.use(bodyParser.json());
 
 // Routes
 app.get('/books', (req, res) => {
-  const query = 'SELECT * FROM book';
+  const query = 'SELECT * FROM books.shopping_cart';
   connection.query(query, (err, results) => {
     if (err) throw err;
     res.send(results);
   });
 });
 
-app.get('/books/:id', (req, res) => {
-  const id = req.params.id;
-  const query = `SELECT * FROM book WHERE book_id = ${id}`;
-  connection.query(query, (err, results) => {
-    if (err) throw err;
-    res.send(results[0]);
-  });
-});
+// Body Parser Middleware
+app.use(bodyParser.json());
 
-app.get('/publishers', (req, res) => {
-  const query = 'SELECT * FROM publisher';
+//Retrieving the subtotal price of all users shopping cart (Example)
+app.get('/shoppingcart', (req, res) => {
+  const query = `SELECT DISTINCT user_id, book_subtotal FROM shopping_cart`;
   connection.query(query, (err, results) => {
     if (err) throw err;
     res.send(results);
   });
 });
 
-app.get('/publishers/:id', (req, res) => {
-  const id = req.params.id;
-  const query = `SELECT * FROM publisher WHERE publisher_id = ${id}`;
-  connection.query(query, (err, results) => {
-    if (err) throw err;
-    res.send(results[0]);
-  });
-});
-
-app.get('/ratings', (req, res) => {
-  const query = 'SELECT * FROM rating';
+//Retrieve the subtotal price of all items in the user’s shopping cart.
+app.get('/shoppingcart/subtotal/:id', (req, res) => {
+  const id = req.params.id
+  const query = ` SELECT user_id, ROUND(SUM(book_subtotal), 2) AS total_book_subtotal FROM shopping_cart WHERE user_id = "${id}" `;
   connection.query(query, (err, results) => {
     if (err) throw err;
     res.send(results);
   });
 });
 
-app.get('/ratings/:id', (req, res) => {
-  const id = req.params.id;
-  const query = `SELECT * FROM rating WHERE rating_id = ${id}`;
-  connection.query(query, (err, results) => {
-    if (err) throw err;
-    res.send(results[0]);
+//Add a book to the shopping cart
+app.post('/shoppingcart', (req, res) => {
+  const { user_id, book_id, book_name, book_subtotal } = req.body;
+  const userId = parseInt(user_id);
+  const bookId = parseInt(book_id);
+  const sanitizedBookName = connection.escape(book_name);
+  const sanitizedBookSubtotal = parseFloat(book_subtotal);
+  const query = `INSERT INTO SHOPPING_CART (user_id, book_id, book_name, book_subtotal) VALUES (?, ?, ?, ?)`;
+  const values = [userId, bookId, sanitizedBookName, sanitizedBookSubtotal];
+  connection.query(query, values, (err, result) => {
+    if (err) {
+      console.error(err);
+      res.status(500).send("Internal Server Error");
+    } else {
+      res.send(result);
+    }
   });
 });
 
-app.get('/sales', (req, res) => {
-  const query = 'SELECT * FROM sale';
-  connection.query(query, (err, results) => {
-    if (err) throw err;
-    res.send(results);
-  });
-});
-
-app.get('/sales/:id', (req, res) => {
-  const id = req.params.id;
-  const query = `SELECT * FROM sale WHERE sale_id = ${id}`;
-  connection.query(query, (err, results) => {
-    if (err) throw err;
-    res.send(results[0]);
-  });
-});
-
-app.get('/getListOfTopSellers', (req, res) => {
-  const query = 'select a.title, count(a.book_id) from book a, sale b where a.book_id = b.book_id group by a.book_id order by count(a.book_id) desc';
+//Retrieve the list of book(s) in the user’s shopping cart
+app.get('/shoppingcart/:id', (req, res) => {
+  const id = req.params.id
+  const query = ` SELECT book_name from shopping_cart WHERE user_id = "${id}" `;
   connection.query(query, (err, results) => {
     if (err) throw err;
     res.send(results);
   });
 });
 
-app.get('/getBooksByGenre', (req, res) => {
-  const genre = req.query.genre;
-  let query = 'SELECT * FROM book ';
-  if (genre) {
-    query += `WHERE genre = '${genre}'`;
-  }
-  connection.query(query, (err, results) => {
-    if (err) throw err;
-    res.send(results);
+//Delete a book from the shopping cart instance for that user.
+app.delete('/shoppingcart', (req, res) => {
+  const { user_id, book_id } = req.body;
+  const userId = parseInt(user_id);
+  const bookId = parseInt(book_id);
+  const query = `DELETE FROM shopping_cart WHERE user_id = ? AND book_id = ? LIMIT 1`;
+  const values = [userId, bookId];
+  connection.query(query, values, (err, result) => {
+    if (err) {
+      console.error(err);
+      res.status(500).send("Internal Server Error");
+    } else {
+      if (result.affectedRows > 0) {
+        res.send("Book deleted successfully");
+      } else {
+        res.send("No matching book found for deletion");
+      }
+    }
   });
 });
-
-app.get('/getBooksByRating', (req, res) => {
-  const rating = req.query.rating;
-  let query = 'select title, avg(rating) from book a, rating b where a.book_id = b.book_id ';
-  if (rating) {
-    query += `group by a.title having avg(rating) >= '${rating}' `;
-    query += `order by avg(b.rating) desc`;
-  }
-  connection.query(query, (err, results) => {
-    if (err) throw err;
-    res.send(results);
-  });
-});
-
-app.put('/updateDiscountBooksByPublisher', (req, res) => {
-  const publisher = req.body.publisher;
-  const discountPrice = req.body.discountPrice;
-  const query = `
-    UPDATE book SET price = price * (${discountPrice}/100) 
-    WHERE book_id IN (SELECT book_id FROM publisher WHERE name = '${publisher}')
-  `;
-  connection.query(query, (err, result) => {
-    if (err) throw err;
-    console.log('Updated book price successfully!');
-    res.send('Updated book price successfully!');
-  });
-});
-
-
-
 
 // Start Server
 app.listen(port, () => {

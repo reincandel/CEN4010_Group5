@@ -31,7 +31,7 @@ connection.connect((err) => {
   });
 });
 
-/* TEST TO GET USER INFORMATION
+// TEST TO GET USER INFORMATION
 
 app.get('/user', (req, res) => {
   const userId = req.query.id;
@@ -63,7 +63,7 @@ app.get('/user', (req, res) => {
   });
 });
 
-*/
+
 
 
 
@@ -166,7 +166,7 @@ app.post('/wishlist/list', (req, res) => {
   }); 
 }); 
 
-// ADD BOOK TO WISHLIST ID
+// ADD BOOK TO WISHLIST ID BY WISHLIST ID
 
 app.post('/wishlist/add-book', (req, res) => {
   const wishlistId = req.body.wishlist_id;
@@ -214,6 +214,78 @@ app.post('/wishlist/add-book', (req, res) => {
 
       const bookQuery = 'SELECT * FROM books WHERE book_id = ?';
       const bookValues = [bookId];
+
+      connection.query(bookQuery, bookValues, (err, bookResults) => {
+        if (err) {
+          console.error(err);
+          res.send('Error retrieving book information');
+          return;
+        }
+
+       res.json({
+          /* TEST TO CHECK IF BOOK WAS ADDED O WISHLIST
+          "message": "Book has been added to wishlist",
+          "wishlist_id": wishlistId,
+          "book_info": bookInfo
+          */
+        });
+
+        return;
+
+        });
+      });
+    });
+  });
+});
+
+// ADD BOOK TO WISHLIST ID BY WISHLIST/BOOK NAME
+
+app.post('/wishlist/add-book-name', (req, res) => {
+  const wishlistName = req.body.wishlist_name;
+  const selectQuery = 'SELECT * FROM wishlist WHERE wishlist_name = ?';
+  const selectValues = [wishlistName];
+
+  connection.query(selectQuery, selectValues, (err, results) => {
+    if (err) {
+      console.error(err);
+      res.send('Error retrieving wishlist information');
+      return;
+    }
+
+    if (results.length === 0) {
+      res.send('Wishlist not found');
+      return;
+    }
+
+    const bookName = req.body.title;
+
+    const checkQuery = 'SELECT * FROM wishlistBooks WHERE wishlist_id = ? AND book_id = ?';
+    const checkValues = [wishlistName, bookName];
+
+    connection.query(checkQuery, checkValues, (err, checkResults) => {
+      if (err) {
+        console.error(err);
+        res.send('Error checking if book exists in wishlist');
+        return;
+      }
+
+      if (checkResults.length > 0) {
+        res.send('Book already in wishlist');
+        return;
+      }
+
+    const insertQuery = `INSERT INTO wishlistBooks (wishlist_id, book_id) VALUES (?, ?)`;
+    const insertValues = [wishlistName, bookName];
+
+    connection.query(insertQuery, insertValues, (err, insertResults) => {
+      if (err) {
+        console.error(err);
+        res.send('Error adding book to wishlist');
+        return;
+      }
+
+      const bookQuery = 'SELECT * FROM books WHERE title = ?';
+      const bookValues = [bookName];
 
       connection.query(bookQuery, bookValues, (err, bookResults) => {
         if (err) {
@@ -344,10 +416,25 @@ app.get('/wishlist/books', (req, res) => {
         "Price": book.price
       };
     });
+
+    const selectWishlistQuery = 'SELECT wishlist_name FROM wishlist WHERE wishlist_id = ?';
+    const selectWishlistValues = [wishlistId];
+
+    connection.query(selectWishlistQuery, selectWishlistValues, (err, results) => {
+      if (err) {
+        console.error(err);
+        res.send('Error retrieving wishlist name');
+        return;
+      }
+
+      const wishlistName = results[0].wishlist_name;
+
   
     res.json({
       "Wishlist ID": wishlistId,
+      "Wishlist Name": wishlistName,
       "Books": bookArray
+    });
     });
   });
 });

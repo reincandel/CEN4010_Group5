@@ -18,189 +18,126 @@ connection.connect((err) => {
   console.log('Connected to MySQL database');
 });
 
+
+
 // Body Parser Middleware
 app.use(bodyParser.json());
 
-// Routes
-app.get('/books_and_authors', (req, res) => {
-  const query = 'SELECT * FROM group5.books_and_authors WHERE ISBN = "978-0-679-72020-1"';
-  connection.query(query, (err, results) => {
-    if (err) throw err;
-    res.send(results);
-  });
-});
+app.get('/books_and_authors', (req, res) => {   
+  const query = 'SELECT * FROM books_and_authors';   
+  connection.query(query, (err, results) => {if (err) throw err; res.send(results);});
+}); 
 
-app.get('/books/:id', (req, res) => {
-  const id = req.params.id;
-  const query = `SELECT * FROM book WHERE book_id = ${id}`;
-  connection.query(query, (err, results) => {
-    if (err) throw err;
-    res.send(results[0]);
-  });
-});
+app.get('/books_and_authors/author', (req, res) => {
+  const author = req.body.Author;
 
-app.get('/publishers', (req, res) => {
-  const query = 'SELECT * FROM publisher';
-  connection.query(query, (err, results) => {
-    if (err) throw err;
-    res.send(results);
-  });
-});
+  const bookQuery = 'SELECT * FROM books_and_authors WHERE author = ?';
+  const bookValues = [author];
 
-app.get('/publishers/:id', (req, res) => {
-  const id = req.params.id;
-  const query = `SELECT * FROM publisher WHERE publisher_id = ${id}`;
-  connection.query(query, (err, results) => {
-    if (err) throw err;
-    res.send(results[0]);
-  });
-});
-
-app.get('/ratings', (req, res) => {
-  const query = 'SELECT * FROM rating';
-  connection.query(query, (err, results) => {
-    if (err) throw err;
-    res.send(results);
-  });
-});
-
-app.get('/ratings/:id', (req, res) => {
-  const id = req.params.id;
-  const query = `SELECT * FROM rating WHERE rating_id = ${id}`;
-  connection.query(query, (err, results) => {
-    if (err) throw err;
-    res.send(results[0]);
-  });
-});
-
-app.get('/sales', (req, res) => {
-  const query = 'SELECT * FROM sale';
-  connection.query(query, (err, results) => {
-    if (err) throw err;
-    res.send(results);
-  });
-});
-
-app.get('/sales/:id', (req, res) => {
-  const id = req.params.id;
-  const query = `SELECT * FROM sale WHERE sale_id = ${id}`;
-  connection.query(query, (err, results) => {
-    if (err) throw err;
-    res.send(results[0]);
-  });
-});
-
-app.get('/getListOfTopSellers', (req, res) => {
-  const query = 'select a.title, count(a.book_id) from book a, sale b where a.book_id = b.book_id group by a.book_id order by count(a.book_id) desc';
-  connection.query(query, (err, results) => {
-    if (err) throw err;
-    res.send(results);
-  });
-});
-
-app.get('/getBooksByGenre', (req, res) => {
-  const genre = req.query.genre;
-  let query = 'SELECT * FROM book ';
-  if (genre) {
-    query += `WHERE genre = '${genre}'`;
-  }
-  connection.query(query, (err, results) => {
-    if (err) throw err;
-    res.send(results);
-  });
-});
-
-app.get('/getBooksByRating', (req, res) => {
-  const rating = req.query.rating;
-  let query = 'select title, avg(rating) from book a, rating b where a.book_id = b.book_id ';
-  if (rating) {
-    query += `group by a.title having avg(rating) >= '${rating}' `;
-    query += `order by avg(b.rating) desc`;
-  }
-  connection.query(query, (err, results) => {
-    if (err) throw err;
-    res.send(results);
-  });
-});
-
-app.put('/updateDiscountBooksByPublisher', (req, res) => {
-  const publisher = req.body.publisher;
-  const discountPrice = req.body.discountPrice;
-  const query = `
-    UPDATE book SET price = price * (${discountPrice}/100) 
-    WHERE book_id IN (SELECT book_id FROM publisher WHERE name = '${publisher}')
-  `;
-  connection.query(query, (err, result) => {
-    if (err) throw err;
-    console.log('Updated book price successfully!');
-    res.send('Updated book price successfully!');
-  });
-});
-
-app.get('/getBooksByISBN', (req, res) => {
-    const ISBN = req.query.ISBN;
-    let query = 'SELECT * FROM group5.books_and_authors ';
-    if (ISBN) {
-      query += `WHERE ISBN = '${book_id}'`;
+  connection.query(bookQuery, bookValues, (err, results) => {
+    if (err) {
+      console.error(err);
+      res.status(500).send('Error retrieving book information');
+      return;
     }
-    connection.query(query, (err, results) => {
-      if (err) throw err;
-      res.send(results);
-    });
-  });
 
-  app.get('/getAuthorBookList', (req, res) => {
-    const author_id = req.query.author_id;
-    let query = 'SELECT * FROM group5.books_and_authors ';
-    if (author_id) {
-      query += `WHERE author_id = '${book_id}'`;
+    if (results.length === 0) {
+      res.status(404).send('WHAT THE FUCK DID YOU DO??');
+      return;
     }
-    connection.query(query, (err, results) => {
-      if (err) throw err;
-      res.send(results);
-    });
+
+    res.json(results[0]);
   });
- 
-  const getBooksByAuthorId = (authorId) => {
-    fetch(`/authors/${authorId}/books`)
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('Failed to retrieve books');
+});
+
+app.get('/books_and_authors/isbn', (req, res) => {
+  const isbn = req.body.ISBN;
+
+  const bookQuery = 'SELECT * FROM books_and_authors WHERE isbn = ?';
+  const bookValues = [isbn];
+
+  connection.query(bookQuery, bookValues, (err, results) => {
+    if (err) {
+      console.error(err);
+      res.status(500).send('Error retrieving book information');
+      return;
+    }
+
+    if (results.length === 0) {
+      res.status(404).send('Book not found');
+      return;
+    }
+
+    res.json(results[0]);
+  });
+});
+
+app.post('/books_and_authors/', (req, res) => {
+  const ISBN = req.body.ISBN;
+  const bookName = req.body.name;
+  const bookDescription = req.body.description;
+  const bookPrice = req.body.price;
+  const bookAuthor = req.body.author;
+  const bookGenre = req.body.genre;
+  const bookPublisher = req.body.publisher;
+  const bookPublished = req.body.year_published;
+  const bookSold = req.body.copies_sold;
+
+    const insertQuery = 'INSERT INTO books_and_authors (ISBN, name, description, price, author, genre, publisher, year_published, copies_sold) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)';
+    const insertValues = [ISBN, bookName, bookDescription, bookPrice, bookAuthor, bookGenre, bookPublisher, bookPublished, bookSold];
+
+
+
+    /*
+    connection.query(insertQuery, insertValues, (err, insertResults) => {
+      if (err) {
+        console.error(err);
+        res.send('Error adding book to system');
+        return;
+      }
+      */
+
+      connection.query(insertQuery, insertValues, (err, bookResults) => {
+        if (err) {
+          console.error(err);
+          res.send('Error retrieving book information');
+          return;
         }
-        return response.json();
-      })
-      .then(books => {
-        // do something with books
-      })
-      .catch(error => console.error(error));
-  }
 
-const authorData = {
-  firstName: "F. Scott",
-  lastName: "Fitzgerald",
-  biography: "Francis Scott Key Fitzgerald was an American novelist, essayist, screenwriter, and short-story writer.",
-  publisher: "Scribner"
-};
+       res.json({
+        });
 
-fetch('/api/authors', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify(authorData)
-})
-.then(response => {
-  if (response.ok) {
-    console.log('Author added successfully!');
-  } else {
-    console.error('Error adding author:', response.statusText);
-  }
-})
-.catch(error => {
-  console.error('Error adding author:', error);
+        return;
+
+        });
 });
 
 
+
+app.post('/author_creation/', (req, res) => {
+  const authorFirstName = req.body.author_first;
+  const authorLastName = req.body.author_last;
+  const authorBio = req.body.author_bio;
+  const authorPublisher = req.body.author_publisher;
+
+    const insertQuery = 'INSERT INTO author_creation (author_first, author_last, author_bio, author_publisher) VALUES (?, ?, ?, ?)';
+    const insertValues = [authorFirstName, authorLastName, authorBio, authorPublisher];
+      
+
+      connection.query(insertQuery, insertValues, (err, insertResults) => {
+        if (err) {
+          console.error(err);
+          res.send('Error inserting author information');
+          return;
+        }
+      
+        res.json({
+        });
+      
+        return;
+      
+      });
+});
 
 // Start Server
 app.listen(port, () => {

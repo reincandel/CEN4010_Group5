@@ -145,11 +145,51 @@ const pool = mysql2.createPool({
 
 }
 
+const createCreditCard = async (req, res) => {
+    const { username, creditCard } = req.body; //{} - deconstruct body
+    const { cardHolderName, cardNumber, expirationDate, CVV, issuer } = creditCard;
+    
+    //check if user already exists
+    let existingUser;
+    try{
+        // filter by username
+        const [rows] = await pool.query(`
+        SELECT * 
+        FROM users
+        WHERE username= ?
+        `, [username])
+        //return rows[0]
+        existingUser = rows[0];
+    }catch(err){
+        return console.log(err);
+    }
+
+    if(!existingUser){
+       return  res
+       .status(400).
+       json({message: "User by that username doesn't exist"});
+    }
+
+    try{
+        const [result] = await pool.query(
+        `INSERT INTO cards (cardHolderName, cardNumber, expirationDate, CVV, issuer, username) 
+        VALUES (?,?,?,?,?,?)
+        `, [cardHolderName, cardNumber, expirationDate, CVV, issuer, username])
+    
+    
+        return res.status(201).json({message: "Card details successfully added!"})
+    }catch(err){
+        return res.status(400).json(err.message);
+    }
+    
+  }
+
 
 app.post("/signup", signup)
 app.get("/users/:username", getUserDetails )
 app.put("/update/:username", updateUserDetails)
 app.post("/login", login)
+app.post("/creditCard", createCreditCard)
 
 app.listen(8080, () => {
   console.log('Server is running on port 8080')
